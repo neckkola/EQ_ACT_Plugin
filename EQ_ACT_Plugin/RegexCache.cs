@@ -44,8 +44,17 @@ namespace EQ_ACT_Plugin
         /// Example: You pierce a widow hatchling for 2 points of damage.
         /// Example:
         /// </summary>
-        public static Regex Damage = new Regex(@"\[.*\] (?<actorname>.+) (?<swingtype>slash|hit|kick|pierce|bash|punch|crush|bite|maul|backstab|claw|strike|sting|burn)(?:s|es)? (?<targetname>.+) for (?<amount>[\d]+) points? of (?<type>.+\ )?damage.", RegexOptions.Compiled);
+        // public static Regex Damage = new Regex(@"\[.*\] (?<actorname>.+) (?<swingtype>slash|hit|kick|pierce|bash|punch|crush|bite|maul|backstab|claw|strike|sting|burn)(?:s|es)? (?<targetname>.+) for (?<amount>[\d]+) points? of (?<type>.+) damage.", RegexOptions.Compiled);
+        // removed type group as it is not needed in EQEMU Mitch F
+        public static Regex Damage = new Regex(@"\[.*\] (?<actorname>.+) (?<swingtype>slash|hit|kick|pierce|bash|punch|crush|bite|maul|backstab|claw|strike|sting|burn)(?:s|es)? (?<targetname>.+) for (?<amount>[\d]+) points? of damage.", RegexOptions.Compiled);
 
+        public static Regex DamageCrit = new Regex(@"\[.*\] (?<actorname>.+) (?<critical>scores a critical hit!) \((?<amount>[\d]+)\)", RegexOptions.Compiled);
+
+        public static Regex BotDamageCrit = new Regex(@"\[.*\] (?<actorname>.+?)'s (?<swingtype>.+) (delivers a )(?<critical>critical)( blast to) (?<targetname>.+)! \((?<amount>[\d]+)\)", RegexOptions.Compiled);
+        
+        /// Myclericone  healed  Rola  for  2300  hit points.
+        public static Regex BotHeal = new Regex(@"\[.*\] (?<actorname>.+)  (healed)  (?<targetname>.+)  (for)  (?<amount>[\d]+)(.+)", RegexOptions.Compiled);
+        
         /// <summary>
         /// Damage regex
         /// Example: Orc centurion is pierced by Seedling's thorns for 1 point of non-melee damage.
@@ -54,8 +63,11 @@ namespace EQ_ACT_Plugin
         public static Regex DamagePassive = new Regex(@"\[.*\] (?<targetname>.+) is (?<swingtype>slash|hit|kick|pierce|bash|punch|crush|bite|maul|backstab|claw|strike|sting|burn)(ed by|d by) (?<actorname>.+)'s (?<type>.+) for (?<amount>[\d]+) points? of (?<type2>.+\ )?damage.", RegexOptions.Compiled);
 
         //You have taken 1 damage from Feeble Poison
-        public static Regex DamageDoTTick = new Regex(@"\[.*\] (?<targetname>.+) (have taken|has taken|takes) (?<amount>[\d]+) damage (from (?<actorname>.+)'s corpse by (?<type>.+)|from (?<actorname2>.+) by (?<type2>.+)|from (?<type3>.+)|by (?<type4>.+))", RegexOptions.Compiled);
-
+        //public static Regex DamageDoTTick = new Regex(@"\[.*\] (?<targetname>.+) (have taken|has taken|takes) (?<amount>[\d]+) damage (from (?<actorname>.+)'s corpse by (?<type>.+)|from (?<actorname2>.+) by (?<type2>.+)|from (?<type3>.+)|by (?<type4>.+))", RegexOptions.Compiled);
+        //public static Regex DamageDoTTick = new Regex(@"\[.*\] (?<targetname>.+) (have taken|has taken|takes) (?<amount>[\d]+) damage (from (?<actorname3>your) (?<type10>.+[^.]))|(from (?<actorname>.+)'s corpse by (?<type>.+)|from (?<actorname2>.+) by (?<type2>.+)|from (?<type3>.+)|by (?<type4>.+))", RegexOptions.Compiled);
+        public static Regex DamageDoTTick = new Regex(@"\[.*\] (?<targetname>.+) (have taken|has taken|takes) (?<amount>[\d]+) damage (from (?<actorname1>your) (?<spell1>.+[^.])|from(?<actorname2>.+) by(?<spell2>.+[^.]))", RegexOptions.Compiled);
+        
+        
         /// <summary>
         /// Miss regex
         /// Example: You try to pierce a widow hatchling, but miss!
@@ -83,10 +95,11 @@ namespace EQ_ACT_Plugin
         /// Non-melee swing type detection
         /// Example: You begin casting Blast of Cold.
         /// </summary>
-        public static Regex NonMeleeType = new Regex(@"\[.*\] (?<actorname>.+) begins? (casting|to cast) (?<skillname>.+)", RegexOptions.Compiled);
-        //Ravahn hit orc pawn for 12 points of non-melee damage.
+        //public static Regex NonMeleeType = new Regex(@"\[.*\] (?<actorname>.+) begins? (casting|to cast) (?<skillname>.+)", RegexOptions.Compiled);
+        // changed for non-melee descriptor of eqemu
+        public static Regex NonMelee = new Regex(@"\[.*\] (?<actorname>.+) hits? (?<targetname>.+) for (?<amount>[\d]+) points? of (?<swingtype>.+) damage.", RegexOptions.Compiled);
         //Orc pawn's skin goes numb.
-
+        public static Regex NonMeleeType = new Regex(@"\[.*\] (?<targetname>.+?) is.+by the (?<swingtype>.+).", RegexOptions.Compiled);
 
         public static Regex ChatText = new Regex(@"\[.*\] (?<actorname>.+) (tells|says|shouts|auctions)(\ )?(?<channelname>.+)?, '(?<text>.+)'", RegexOptions.Compiled);
 

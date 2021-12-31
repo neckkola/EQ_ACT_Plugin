@@ -22,12 +22,16 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static EQ_ACT_Plugin.EQ_ACT_Plugin;
+using System.Diagnostics;
+using System.Data;
 
 namespace EQ_ACT_Plugin
 {
+
     public static class LogParse
     {
-
+        
         /// <summary>
         /// This takes a log line and determines the date/time from it.
         /// </summary>
@@ -68,35 +72,146 @@ namespace EQ_ACT_Plugin
 
         public static bool ParseDamage(LogLineEventArgs logInfo)
         {
-            Match m = RegexCache.Damage.Match(logInfo.logLine);
-            if (!m.Success)
-                m = RegexCache.DamagePassive.Match(logInfo.logLine);
+            if (_LastNonMeleeSkillused.ContainsKey("critical"))
+            {
+                Match m = RegexCache.Damage.Match(logInfo.logLine);
+                string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
+                string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
+//                string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
+                string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
+                string skill = "melee";
+                string item;
+                if (_LastNonMeleeSkillused.TryGetValue("critical", out item))
+                {
+                    string[] elements = item.Split(',');
+                    string amount = elements[1];
+
+                    SwingTypeEnum swingType = SwingTypeEnum.Melee;
+
+                    MasterSwing ms = new MasterSwing((int)swingType, true, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, swingtype, target);
+
+                    if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
+                        ActGlobals.oFormActMain.AddCombatAction(ms);
+
+                    _LastNonMeleeSkillused.Clear();
+
+                    return true;
+                }
+                return false;
+            }
+            else
+            {
+                Match m = RegexCache.Damage.Match(logInfo.logLine);
+                if (!m.Success)
+                    m = RegexCache.DamagePassive.Match(logInfo.logLine);
+                if (m.Success)
+                {
+                    string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
+                    string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
+                    string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
+                    string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
+                    Globals.rolling_target = target;
+                    string skill = "melee";
+                    SwingTypeEnum swingType = SwingTypeEnum.Melee;
+                    if (m.Groups["type"].Success)
+                    {
+                        skill = CleanupSkill(m.Groups["type"].Value);
+
+                        if (skill == "non-melee")
+                        {
+                            if (_LastNonMeleeSkillused.ContainsKey(actor))
+                                skill = _LastNonMeleeSkillused[actor];
+
+                            swingType = SwingTypeEnum.NonMelee;
+                        }
+                    }
+
+
+                    //MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, "", target);
+                    MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, swingtype, target);
+
+                    if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
+                        ActGlobals.oFormActMain.AddCombatAction(ms);
+
+                    return true;
+                }
+                return false;
+            }
+        }
+        public static bool BotParseDamageCrit(LogLineEventArgs logInfo)
+        {
+            Match m = RegexCache.BotDamageCrit.Match(logInfo.logLine);
+            if (m.Success)
+            {
+                string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
+                //string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
+                string skill = "melee";
+                string target = Globals.rolling_target;
+                string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
+                string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
+                bool critcal = m.Groups["critical"].Success ? true : false;
+
+                SwingTypeEnum swingType = SwingTypeEnum.NonMelee;
+
+                //MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, "", target);
+                MasterSwing ms = new MasterSwing((int)swingType, true, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, swingtype, target);
+
+                if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
+                    ActGlobals.oFormActMain.AddCombatAction(ms);
+
+                return true;
+            }
+
+            return false;
+        }
+        public static bool BotParseHeal(LogLineEventArgs logInfo)
+        {
+            Match m = RegexCache.BotHeal.Match(logInfo.logLine);
             if (m.Success)
             {
                 string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
                 string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
+                string skill = "melee";
+                //string target = Globals.rolling_target;
                 string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
                 string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
+                //bool critcal = m.Groups["critical"].Success ? true : false;
 
-                string skill = "attack";
-                SwingTypeEnum swingType = SwingTypeEnum.Melee;
-                if (m.Groups["type"].Success)
-                {
-                    skill = CleanupSkill(m.Groups["type"].Value);
-                    if (skill == "non-melee")
-                    {
-                        if (_LastNonMeleeSkillused.ContainsKey(actor))
-                            skill = _LastNonMeleeSkillused[actor];
+                SwingTypeEnum swingType = SwingTypeEnum.Healing;
 
-                        swingType = SwingTypeEnum.NonMelee;
-                    }
-                }
-
-
-                MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, "", target);
+                //MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, "", target);
+                MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, "heal", actor, "heal", target);
 
                 if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
                     ActGlobals.oFormActMain.AddCombatAction(ms);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool ParseDamageCrit(LogLineEventArgs logInfo)
+        {
+            Match m = RegexCache.DamageCrit.Match(logInfo.logLine);
+            if (m.Success)
+            {
+                string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
+                string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
+
+                string data = string.Concat(actor, ",", amount);
+
+                _LastNonMeleeSkillused.TryAdd("critical", data);
+
+                //bool critcal = m.Groups["critical"].Success ? true : false;
+
+                //                SwingTypeEnum swingType = SwingTypeEnum.Melee;
+
+                //MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, "", target);
+                //                MasterSwing ms = new MasterSwing((int)swingType, true, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, "crit", actor, "crit", target);
+
+                //                if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
+                //                    ActGlobals.oFormActMain.AddCombatAction(ms);
 
                 return true;
             }
@@ -112,19 +227,30 @@ namespace EQ_ACT_Plugin
             if (!m.Success)
                 return false;
 
-            string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : 
+            string actor = m.Groups["actorname1"].Success ? TranslateName(m.Groups["actorname1"].Value) : 
                 m.Groups["actorname2"].Success ? TranslateName(m.Groups["actorname2"].Value) : "";
             string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
             string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
-            string skillname = CleanupSkill(m.Groups["type"].Success ? m.Groups["type"].Value : 
-                m.Groups["type2"].Success ? m.Groups["type2"].Value :
-                m.Groups["type3"].Success ? m.Groups["type3"].Value :
-                m.Groups["type4"].Success ? m.Groups["type4"].Value : "");
-            
+            //string skillname = CleanupSkill(m.Groups["type"].Success ? m.Groups["type"].Value : 
+            //    m.Groups["type2"].Success ? m.Groups["type2"].Value :
+            //    m.Groups["type3"].Success ? m.Groups["type3"].Value :
+            //    m.Groups["type4"].Success ? m.Groups["type4"].Value : 
+            //    m.Groups["type10"].Success ? m.Groups["type10"].Value : "");
+            string skillname = CleanupSkill(m.Groups["spell1"].Success ? m.Groups["spell1"].Value :
+                m.Groups["spell2"].Success ? m.Groups["spell2"].Value : "unkownspell");
+
+            //if (actor == "your") actor = ActGlobals.charName;
+
             if (string.IsNullOrWhiteSpace(actor))
                 actor = "unknown";
 
-            MasterSwing ms = new MasterSwing((int)SwingTypeEnum.NonMelee, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skillname, actor, "", target);
+            Debug.Listeners.Add(new TextWriterTraceListener(Console.Out));
+            Debug.WriteLine("Actor:" + actor);
+            Debug.WriteLine("Target:" + target);
+            Debug.WriteLine("Amount:" + amount);
+            Debug.WriteLine("SkillName:" + skillname);
+
+            MasterSwing ms = new MasterSwing((int)SwingTypeEnum.NonMelee, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skillname, actor, "spell", target);
 
             if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
                 ActGlobals.oFormActMain.AddCombatAction(ms);
@@ -138,12 +264,21 @@ namespace EQ_ACT_Plugin
             {
                 string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
                 string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
-                string skillname = "attack";
+                string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
+                string skill = "melee";
                 string misstype = m.Groups["dodge"].Success ? "dodge" :
                     m.Groups["parry"].Success ? "parry" :
                     m.Groups["riposte"].Success ? "riposte" : "";
-                MasterSwing ms = new MasterSwing((int)SwingTypeEnum.Melee, false, misstype, Dnum.Miss, logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skillname, actor, "", target);
 
+                Debug.Listeners.Add(new TextWriterTraceListener(Console.Out));
+                Debug.WriteLine("Actor:" + actor);
+                Debug.WriteLine("Target:" + target);
+                Debug.WriteLine("SwingType:" + swingtype);
+                Debug.WriteLine("MissType:" + misstype);
+
+                //MasterSwing ms = new MasterSwing((int)SwingTypeEnum.Melee, false, misstype, Dnum.Miss, logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skillname, actor, "", target);
+                MasterSwing ms = new MasterSwing((int)SwingTypeEnum.Melee, false, misstype, Dnum.Miss , logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, swingtype, target);
+                
                 if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
                     ActGlobals.oFormActMain.AddCombatAction(ms);
 
@@ -190,31 +325,68 @@ namespace EQ_ACT_Plugin
 
         public static bool ParseNonMeleeType(LogLineEventArgs logInfo)
         {
-            Match m = RegexCache.NonMeleeType.Match(logInfo.logLine);
-            if (m.Success)
+            if (_LastNonMeleeSkillused.ContainsKey("non-melee"))
             {
-                string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
-                string skill = m.Groups["skillname"].Success ? CleanupSkill(m.Groups["skillname"].Value) : "";
-
-                if (!string.IsNullOrWhiteSpace(actor) && !string.IsNullOrWhiteSpace(skill))
+                Match m = RegexCache.NonMeleeType.Match(logInfo.logLine);
+                string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
+                string skill = "non-melee";
+                string item;
+                if (_LastNonMeleeSkillused.TryGetValue("non-melee", out item))
                 {
-                    if (_LastNonMeleeSkillused.ContainsKey(actor))
-                        _LastNonMeleeSkillused[actor] = skill;
-                    else
-                        _LastNonMeleeSkillused.AddOrUpdate(actor, skill, (key, oldValue) => skill);
-                }
+                    string[] elements = item.Split(',');
+                    string actor = elements[0];
+                    string target = elements[1];
+                    string amount = elements[2];
 
+                    SwingTypeEnum swingType = SwingTypeEnum.NonMelee;
+
+                    MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, swingtype, target);
+
+                    if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
+                        ActGlobals.oFormActMain.AddCombatAction(ms);
+
+                    _LastNonMeleeSkillused.Clear();
+
+                    return true;
+                }
                 return true;
             }
+            else
+            {
+                Match m = RegexCache.NonMelee.Match(logInfo.logLine);
+                if (m.Success)
+                {
+                    string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
+                    string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
+                    string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
+                    string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
+                    string skill = "non-melee";
+                    string data = string.Concat(actor, ',', target, ',', amount);
 
-            return false;
+                    _LastNonMeleeSkillused.TryAdd("non-melee", data);
+
+//                    SwingTypeEnum swingType = SwingTypeEnum.NonMelee;
+
+//                    MasterSwing ms = new MasterSwing((int)swingType, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skill, actor, swingtype, target);
+
+//                    if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
+//                        ActGlobals.oFormActMain.AddCombatAction(ms);
+
+                    return true;
+
+                }
+
+                return false;
+            }
+
         }
-
         private static string TranslateName(string name)
         {
             string ret = name;
 
             if (name.ToLower() == "you")
+                return ActGlobals.charName;
+            if (name.ToLower() == "your")
                 return ActGlobals.charName;
             if (ret.ToLower().StartsWith("an "))
                 ret = ret.Substring(3);

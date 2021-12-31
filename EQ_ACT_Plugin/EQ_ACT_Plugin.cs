@@ -24,6 +24,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using System.Diagnostics;
+using System;
 
 using Advanced_Combat_Tracker;
 using System.Xml;
@@ -41,6 +43,15 @@ namespace EQ_ACT_Plugin
         {
             InitializeComponent();
         }
+        public static class Globals
+        {
+            public static string rolling_target;
+        }
+
+       // public static class Debug
+        //{
+
+       // }
 
         public void InitPlugin(TabPage pluginScreenSpace, Label pluginStatusText)
         {
@@ -60,11 +71,12 @@ namespace EQ_ACT_Plugin
 
             ActGlobals.oFormActMain.TimeStampLen = "[DAY MON XX HH:MM:SS YYYY] ".Length;
 
-
             // Create some sort of parsing event handler.  After the "+=" hit TAB twice and the code will be generated for you.
             //ActGlobals.oFormActMain.AfterCombatAction += new CombatActionDelegate(oFormActMain_AfterCombatAction);
 
             lblStatus.Text = "Plugin Started";
+
+            Debug.Listeners.Add(new TextWriterTraceListener(Console.Out));
         }
 
         public void DeInitPlugin()
@@ -78,7 +90,14 @@ namespace EQ_ACT_Plugin
 
         public void BeforeLogLineRead(bool isImport, LogLineEventArgs logInfo)
         {
+            
             if (LogParse.ParseDamage(logInfo))
+                return;
+            if (LogParse.ParseDamageCrit(logInfo))
+                return;
+            if (LogParse.BotParseHeal(logInfo))
+                return;
+            if (LogParse.BotParseDamageCrit(logInfo))
                 return;
             if (LogParse.ParseDoTTick(logInfo))
                 return;
