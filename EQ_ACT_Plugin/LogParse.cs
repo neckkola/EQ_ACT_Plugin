@@ -145,7 +145,7 @@ namespace EQ_ACT_Plugin
             {
                 string actor = m.Groups["actorname"].Success ? TranslateName(m.Groups["actorname"].Value) : "";
                 //string target = m.Groups["targetname"].Success ? TranslateName(m.Groups["targetname"].Value) : "";
-                string skill = "melee";
+                string skill = "non-melee";
                 string target = Globals.rolling_target;
                 string amount = m.Groups["amount"].Success ? m.Groups["amount"].Value : "";
                 string swingtype = m.Groups["swingtype"].Success ? m.Groups["swingtype"].Value : "";
@@ -250,7 +250,7 @@ namespace EQ_ACT_Plugin
             Debug.WriteLine("Amount:" + amount);
             Debug.WriteLine("SkillName:" + skillname);
 
-            MasterSwing ms = new MasterSwing((int)SwingTypeEnum.NonMelee, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, skillname, actor, "spell", target);
+            MasterSwing ms = new MasterSwing((int)SwingTypeEnum.NonMelee, false, int.Parse(amount), logInfo.detectedTime, ActGlobals.oFormActMain.GlobalTimeSorter, "non-melee", actor, skillname, target);
 
             if (ActGlobals.oFormActMain.SetEncounter(logInfo.detectedTime, actor, target))
                 ActGlobals.oFormActMain.AddCombatAction(ms);
